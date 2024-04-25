@@ -8,7 +8,9 @@
 //импортируем библиотеки dotenv и grammy
 
 require('dotenv').config()
-const { Bot, GrammyError, HttpError, Keyboard, Router } = require('grammy')
+const { Bot, GrammyError, HttpError, Keyboard, Context } = require('grammy')
+
+const https = require('https')
 
 const fetch = require('node-fetch')
 
@@ -16,6 +18,7 @@ const bot = new Bot(process.env.BOT_API_KEY) //?подключаем API бот�
 
 const vkAccessToken = process.env.VK_ACCESS_TOKEN
 
+const tgId = process.env.TG_ID
 
 bot.api.setMyCommands([
 	{
@@ -27,8 +30,8 @@ bot.api.setMyCommands([
 		description: 'Команды бота',
 	},
 	{
-		command: 'mod',
-		description: 'Твоё настроение',
+		command: 'social',
+		description: 'Социальные сети:',
 	},
 	{
 		command: 'vk_f',
@@ -39,7 +42,7 @@ bot.api.setMyCommands([
 
 bot.command('start', async ctx => {
 	await ctx.reply(
-		'Привет! Я бот. Тг канал: <a href="#">https://t.me/New_World_Xil</a>',
+		'Привет! Я telegram-bot, можешь воспользоваться необходимыми командами для общения со мной, удачи!',
 		{
 			parse_mode: 'HTML',
 		}
@@ -48,18 +51,133 @@ bot.command('start', async ctx => {
 
 bot.command('help', async ctx => {
 	await ctx.reply(
-		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/mod - Клавиатура'
+		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/social - Клавиатура\n/vk_f - Проверка страницы VK на фейковость'
 	)
 })
 
 bot.hears('creator_ximelay', async ctx => {
-	if (ctx.from.id === 1837141803) {
+	if (ctx.from.id === tgId) {
 		await ctx.reply(
 			'Привет, Ximelay. Скоро этот раздел будет исключительно для тебя'
 		)
 	} else {
 		await ctx.reply('Эта команда исключительно для админа(')
 	}
+})
+
+
+// Обработчик команды для очистки чата
+bot.command('clear', async (ctx) => {
+    // Проверяем, имеет ли пользователь права на удаление сообщений (например, администратор или создатель чата)
+    if (ctx.from.id == tgId) {
+			try {
+				// Получаем идентификатор чата
+				const chatId = ctx.chat.id
+				// Получаем список всех сообщений в чате
+				const messages = await getChatHistory(chatId)
+				// Проходимся по каждому сообщению и удаляем его
+				for (const message of messages) {
+					await deleteMessage(chatId, message.message_id)
+				}
+				await ctx.reply('Chat cleared successfully')
+			} catch (error) {
+				console.error('Error while clearing chat:', error)
+				await ctx.reply('Error while clearing chat')
+			}
+		} else {
+			await ctx.reply('You do not have permission to clear the chat.')
+		}
+});
+
+// Функция для получения истории чата
+async function getChatHistory(chatId) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'api.telegram.org',
+            path: `/bot${bot}/getChatHistory?chat_id=${chatId}&limit=1000`,
+            method: 'GET'
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                const result = JSON.parse(data);
+                if (result.ok) {
+                    resolve(result.result.messages);
+                } else {
+                    reject(result);
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        req.end();
+    });
+}
+
+// Функция для удаления сообщения в чате
+async function deleteMessage(chatId, messageId) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'api.telegram.org',
+            path: `/bot${bot.token}/deleteMessage`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            res.on('data', () => {
+                // Успешно удалено
+                resolve();
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        const postData = JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId
+        });
+
+        req.write(postData);
+        req.end();
+    });
+}
+
+
+bot.command('social', async ctx => {
+	const moodKeyboard = new Keyboard()
+		.text('Telegram')
+		.row()
+		.text('VK')
+		.row()
+		.text('GitHub')
+		.resized() //* создаст клавиатуру, где с каждой новой строки будет выведено новое слово с размерами по содержимому
+	await ctx.reply('Ваши соц. сети:', {
+		reply_markup: moodKeyboard,
+	})
+})
+
+bot.hears('Telegram', async ctx => {
+	await ctx.reply(`Ваш id в Telegram: ${ctx.from.id}`)
+})
+
+bot.hears('VK', async ctx => {
+	await ctx.reply(`VK: https://m.vk.com`)
+})
+
+bot.hears('GitHub', async ctx => {
+	await ctx.reply('GitHub: https://github.com')
 })
 
 bot.command('vk_f', ctx => {
@@ -91,41 +209,18 @@ bot.on('message', async ctx => {
 	}
 })
 
-bot.command('mod', async ctx => {
-	const moodKeyboard = new Keyboard()
-		.text('Telegram')
-		.row()
-		.text('VK')
-		.row()
-		.text('GitHub')
-		.resized() //* создаст клавиатуру, где с каждой новой строки будет выведено новое слово с размерами по содержимому
-	await ctx.reply('Ваши соц. сети:', {
-		reply_markup: moodKeyboard,
-	})
-})
-
-bot.hears('Telegram', async ctx => {
-	await ctx.reply(`Ваш id в Telegram: ${ctx.from.id}`)
-})
-
-bot.hears('VK', async ctx => {
-	await ctx.reply(`VK: `)
-}) //TODO Доделать!!!
-
-
-
 bot.catch(err => {
 	// TODO проверка на различные ошибки
 	const ctx = err.ctx
-	console.log(`Error while handling update ${ctx.update.update_id}:`)
+	console.log(`Ошибка при обработке обновления ${ctx.update.update_id}:`)
 	const e = err.error
 
 	if (e instanceof GrammyError) {
-		console.error('Error in request:', e.description)
+		console.error('Ошибка в запросе:', e.description)
 	} else if (e instanceof HttpError) {
-		console.error('Could not contact Telegram:', e)
+		console.error('Не удалось связаться с Telegram:', e)
 	} else {
-		console.error('Unknown error', e)
+		console.error('Неизвестная ошибка', e)
 	}
 })
 
