@@ -30,8 +30,16 @@ bot.api.setMyCommands([
 		description: 'Команды бота',
 	},
 	{
+		command: 'clear',
+		description: 'Очистка чата',
+	},
+	{
 		command: 'social',
 		description: 'Социальные сети:',
+	},
+	{
+		command: 'file',
+		description: 'Сохранение ваших файлов:',
 	},
 	{
 		command: 'vk_f',
@@ -51,109 +59,141 @@ bot.command('start', async ctx => {
 
 bot.command('help', async ctx => {
 	await ctx.reply(
-		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/social - Клавиатура\n/vk_f - Проверка страницы VK на фейковость'
+		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/clear - очистка чата\n/social - Клавиатура\n/file - Сохранение вашего фала\n/vk_f - Проверка страницы VK на фейковость'
 	)
 })
 
-bot.hears('creator_ximelay', async ctx => {
-	if (ctx.from.id === tgId) {
-		await ctx.reply(
-			'Привет, Ximelay. Скоро этот раздел будет исключительно для тебя'
-		)
+// bot.hears('creator_ximelay', async ctx => {
+// 	if (ctx.from.id === tgId) {
+// 		await ctx.reply(
+// 			'Привет, Ximelay. Скоро этот раздел будет исключительно для тебя'
+// 		)
+// 	} else {
+// 		await ctx.reply('Эта команда исключительно для админа(')
+// 	}
+// })
+
+// Обработчик команды для очистки чата
+bot.command('clear', async ctx => {
+	// Проверяем, имеет ли пользователь права на удаление сообщений (например, администратор или создатель чата)
+	if (ctx.from.id == tgId) {
+		try {
+			// Получаем идентификатор чата
+			const chatId = ctx.chat.id
+			// Получаем список всех сообщений в чате
+			const messages = await getChatHistory(chatId)
+			// Проходимся по каждому сообщению и удаляем его
+			for (const message of messages) {
+				await deleteMessage(chatId, message.message_id)
+			}
+			await ctx.reply('Chat cleared successfully')
+		} catch (error) {
+			console.error('Error while clearing chat:', error)
+			await ctx.reply('Error while clearing chat')
+		}
 	} else {
-		await ctx.reply('Эта команда исключительно для админа(')
+		await ctx.reply('You do not have permission to clear the chat.')
 	}
 })
 
-
-// Обработчик команды для очистки чата
-bot.command('clear', async (ctx) => {
-    // Проверяем, имеет ли пользователь права на удаление сообщений (например, администратор или создатель чата)
-    if (ctx.from.id == tgId) {
-			try {
-				// Получаем идентификатор чата
-				const chatId = ctx.chat.id
-				// Получаем список всех сообщений в чате
-				const messages = await getChatHistory(chatId)
-				// Проходимся по каждому сообщению и удаляем его
-				for (const message of messages) {
-					await deleteMessage(chatId, message.message_id)
-				}
-				await ctx.reply('Chat cleared successfully')
-			} catch (error) {
-				console.error('Error while clearing chat:', error)
-				await ctx.reply('Error while clearing chat')
-			}
-		} else {
-			await ctx.reply('You do not have permission to clear the chat.')
-		}
-});
-
 // Функция для получения истории чата
 async function getChatHistory(chatId) {
-    return new Promise((resolve, reject) => {
-        const options = {
-            hostname: 'api.telegram.org',
-            path: `/bot${bot}/getChatHistory?chat_id=${chatId}&limit=1000`,
-            method: 'GET'
-        };
+	return new Promise((resolve, reject) => {
+		const options = {
+			hostname: 'api.telegram.org',
+			path: `/bot${bot}/getChatHistory?chat_id=${chatId}&limit=1000`,
+			method: 'GET',
+		}
 
-        const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', (chunk) => {
-                data += chunk;
-            });
-            res.on('end', () => {
-                const result = JSON.parse(data);
-                if (result.ok) {
-                    resolve(result.result.messages);
-                } else {
-                    reject(result);
-                }
-            });
-        });
+		const req = https.request(options, res => {
+			let data = ''
+			res.on('data', chunk => {
+				data += chunk
+			})
+			res.on('end', () => {
+				const result = JSON.parse(data)
+				if (result.ok) {
+					resolve(result.result.messages)
+				} else {
+					reject(result)
+				}
+			})
+		})
 
-        req.on('error', (error) => {
-            reject(error);
-        });
+		req.on('error', error => {
+			reject(error)
+		})
 
-        req.end();
-    });
+		req.end()
+	})
 }
 
 // Функция для удаления сообщения в чате
 async function deleteMessage(chatId, messageId) {
-    return new Promise((resolve, reject) => {
-        const options = {
-            hostname: 'api.telegram.org',
-            path: `/bot${bot.token}/deleteMessage`,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        };
+	return new Promise((resolve, reject) => {
+		const options = {
+			hostname: 'api.telegram.org',
+			path: `/bot${bot.token}/deleteMessage`,
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		}
 
-        const req = https.request(options, (res) => {
-            res.on('data', () => {
-                // Успешно удалено
-                resolve();
-            });
-        });
+		const req = https.request(options, res => {
+			res.on('data', () => {
+				// Успешно удалено
+				resolve()
+			})
+		})
 
-        req.on('error', (error) => {
-            reject(error);
-        });
+		req.on('error', error => {
+			reject(error)
+		})
 
-        const postData = JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId
-        });
+		const postData = JSON.stringify({
+			chat_id: chatId,
+			message_id: messageId,
+		})
 
-        req.write(postData);
-        req.end();
-    });
+		req.write(postData)
+		req.end()
+	})
 }
 
+bot.command('vk_f', ctx => {
+	ctx.reply(
+		'Привет! Отправь мне ссылку на страницу ВКонтакте, и я проверю её на "фейковость".'
+	)
+})
+
+bot.on('message', async ctx => {
+	const text = ctx.message.text
+	if (text.startsWith('https://vk.com/')) {
+		const userId = text.split('/').pop()
+		const vkResponse = await fetch(
+			`https://api.vk.com/method/users.get?user_ids=${userId}&fields=is_closed,sex,bdate,counters&access_token=${vkAccessToken}&v=5.131`
+		)
+		const userData = await vkResponse.json()
+		console.log(userData) // Выводим данные для отладки
+		if (userData.response && userData.response[0]) {
+			const user = userData.response[0]
+			if (user.is_closed === 1) {
+				ctx.reply('Страница закрыта, возможно, это фейк.')
+			} else {
+				const registrationDate = user.bdate || 'не указана' // Дата регистрации аккаунта
+				const friendsCount = user.counters.friends || 0 // Количество друзей
+				ctx.reply(
+					`Страница открыта. Дата регистрации: ${registrationDate}. Количество друзей: ${friendsCount}.`
+				)
+			}
+		} else {
+			ctx.reply('Не удалось получить информацию о странице.')
+		}
+	} else {
+		ctx.reply('Отправьте ссылку на страницу ВКонтакте.')
+	}
+})
 
 bot.command('social', async ctx => {
 	const moodKeyboard = new Keyboard()
@@ -162,7 +202,8 @@ bot.command('social', async ctx => {
 		.text('VK')
 		.row()
 		.text('GitHub')
-		.resized() //* создаст клавиатуру, где с каждой новой строки будет выведено новое слово с размерами по содержимому
+		.resized()
+		.oneTime() //* создаст клавиатуру, где с каждой новой строки будет выведено новое слово с размерами по содержимому
 	await ctx.reply('Ваши соц. сети:', {
 		reply_markup: moodKeyboard,
 	})
@@ -180,34 +221,25 @@ bot.hears('GitHub', async ctx => {
 	await ctx.reply('GitHub: https://github.com')
 })
 
-bot.command('vk_f', ctx => {
-	ctx.reply(
-		'Привет! Отправь мне ссылку на страницу ВКонтакте, и я проверю её на "фейковость".'
-	)
+bot.command('file', ctx => {
+	// Инициализация сессии пользователя
+	ctx.session = { expectingFiles: true }
+	return ctx.reply('Привет! Отправь мне файл и я его сохраню.')
 })
 
 bot.on('message', async ctx => {
-	const text = ctx.message.text
-	if (text.startsWith('https://vk.com/')) {
-		const userId = text.split('/').pop()
-		const vkResponse = await fetch(
-			`https://api.vk.com/method/users.get?user_ids=${userId}&fields=is_closed&access_token=${vkAccessToken}&v=5.131`
-		)
-		const userData = await vkResponse.json()
-		if (userData.response && userData.response[0]) {
-			const user = userData.response[0]
-			if (user.is_closed === 1) {
-				ctx.reply('Страница закрыта, возможно, это фейк.')
-			} else {
-				ctx.reply('Страница открыта, вероятно, это настоящий аккаунт.')
-			}
-		} else {
-			ctx.reply('Не удалось получить информацию о странице.')
-		}
-	} else {
-		ctx.reply('Отправьте ссылку на страницу ВКонтакте.')
+	if (ctx.session && ctx.session.expectingFiles && ctx.message.document) {
+		// Получаем информацию о файле
+		const file = await ctx.telegram.getFile(ctx.message.document.file_id)
+		// Загружаем файл и сохраняем его на сервере
+		const fileLink = `https://api.telegram.org/file/bot${bot}/${file.file_path}`
+		delete ctx.session.expectingFiles // Удаляем флаг ожидания файлов
+		ctx.reply('Файл сохранен! Можешь его скачать по этой ссылке: ' + fileLink)
+	} else if (ctx.session && ctx.session.expectingFiles) {
+		ctx.reply('Извините, ожидался только файл. Пожалуйста, отправьте файл.')
 	}
 })
+
 
 bot.catch(err => {
 	// TODO проверка на различные ошибки
