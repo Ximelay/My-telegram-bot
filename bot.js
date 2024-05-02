@@ -14,6 +14,8 @@ const https = require('https')
 
 const fetch = require('node-fetch')
 
+const dayjs = require('dayjs')
+
 const bot = new Bot(process.env.BOT_API_KEY) //?подключаем API бота
 
 const vkAccessToken = process.env.VK_ACCESS_TOKEN
@@ -33,10 +35,10 @@ bot.api.setMyCommands([
 		command: 'clear',
 		description: 'Очистка чата',
 	},
-	{
-		command: 'social',
-		description: 'Социальные сети:',
-	},
+	// {
+	// 	command: 'social',
+	// 	description: 'Социальные сети:',
+	// },
 	{
 		command: 'file',
 		description: 'Сохранение ваших файлов:',
@@ -59,7 +61,7 @@ bot.command('start', async ctx => {
 
 bot.command('help', async ctx => {
 	await ctx.reply(
-		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/clear - очистка чата\n/social - Клавиатура\n/file - Сохранение вашего фала\n/vk_f - Проверка страницы VK на фейковость'
+		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/clear - очистка чата\n/social - Клавиатура\n/file - Сохранение вашего фала\n/my_files - Ваши файлы\n/vk_f - Проверка страницы VK на фейковость\n/social - Соц. Сети'
 	)
 })
 
@@ -161,31 +163,55 @@ async function deleteMessage(chatId, messageId) {
 	})
 }
 
-bot.command('vk_f', ctx => {
+// Функция для расчета количества дней между двумя датами
+function getDaysSince(date) {
+	const today = dayjs() // Текущая дата
+	const registrationDate = dayjs(date) // Дата регистрации страницы
+	return today.diff(registrationDate, 'day') // Разница в днях
+}
+
+bot.command('vk_f', async ctx => {
 	ctx.reply(
 		'Привет! Отправь мне ссылку на страницу ВКонтакте, и я проверю её на "фейковость".'
 	)
 })
 
-bot.on('message', async ctx => {
+bot.on('::url', async ctx => {
 	const text = ctx.message.text
-	if (text.startsWith('https://vk.com/')) {
-		const userId = text.split('/').pop()
+	const vkUrlRegex = /^https:\/\/vk\.com\/([^\s]+)/i // Регулярное выражение для проверки ссылок на страницы ВКонтакте
+	if (vkUrlRegex.test(text)) {
+		// Проверяем, является ли текст сообщения ссылкой на страницу ВКонтакте
+		const userId = text.match(vkUrlRegex)[1] // Извлекаем id пользователя из ссылки
 		const vkResponse = await fetch(
-			`https://api.vk.com/method/users.get?user_ids=${userId}&fields=is_closed,sex,bdate,counters&access_token=${vkAccessToken}&v=5.131`
+			`https://api.vk.com/method/users.get?user_ids=${userId}&fields=bdate,counters&access_token=${vkAccessToken}&v=5.131`
 		)
 		const userData = await vkResponse.json()
-		console.log(userData) // Выводим данные для отладки
 		if (userData.response && userData.response[0]) {
 			const user = userData.response[0]
 			if (user.is_closed === 1) {
 				ctx.reply('Страница закрыта, возможно, это фейк.')
 			} else {
-				const registrationDate = user.bdate || 'не указана' // Дата регистрации аккаунта
-				const friendsCount = user.counters.friends || 0 // Количество друзей
-				ctx.reply(
-					`Страница открыта. Дата регистрации: ${registrationDate}. Количество друзей: ${friendsCount}.`
-				)
+				const registrationDate = user.bdate // Дата регистрации аккаунта ВКонтакте
+				const daysSinceRegistration = registrationDate
+					? getDaysSince(registrationDate)
+					: null // Количество дней с момента регистрации
+				let message = '' // Переменная для сообщения о результатах проверки
+				if (daysSinceRegistration !== null) {
+					if (daysSinceRegistration < 100) {
+						message =
+							'Страница существует менее 100 дней, скорее всего, это фейковая страница.'
+					} else if (daysSinceRegistration < 730) {
+						message =
+							'Страница существует менее 2 лет, возможно, это фейковая страница.'
+					} else {
+						message =
+							'Страница существует более 2 лет, вероятно, это настоящий аккаунт.'
+					}
+				} else {
+					message =
+						'Дата регистрации не указана, невозможно определить фейковость страницы.'
+				}
+				ctx.reply(message)
 			}
 		} else {
 			ctx.reply('Не удалось получить информацию о странице.')
@@ -194,7 +220,7 @@ bot.on('message', async ctx => {
 		ctx.reply('Отправьте ссылку на страницу ВКонтакте.')
 	}
 })
-
+// !Доделать
 bot.command('social', async ctx => {
 	const moodKeyboard = new Keyboard()
 		.text('Telegram')
@@ -221,25 +247,54 @@ bot.hears('GitHub', async ctx => {
 	await ctx.reply('GitHub: https://github.com')
 })
 
+// Инициализация пустого объекта для хранения ссылок на файлы пользователей
+const userFiles = {}
+
+// Команда для сохранения файла
 bot.command('file', ctx => {
 	// Инициализация сессии пользователя
 	ctx.session = { expectingFiles: true }
 	return ctx.reply('Привет! Отправь мне файл и я его сохраню.')
 })
 
+// Обработчик сообщений
 bot.on('message', async ctx => {
 	if (ctx.session && ctx.session.expectingFiles && ctx.message.document) {
 		// Получаем информацию о файле
 		const file = await ctx.telegram.getFile(ctx.message.document.file_id)
 		// Загружаем файл и сохраняем его на сервере
 		const fileLink = `https://api.telegram.org/file/bot${bot}/${file.file_path}`
-		delete ctx.session.expectingFiles // Удаляем флаг ожидания файлов
+		// Получаем ID пользователя
+		const userId = ctx.from.id
+		// Проверяем, есть ли у пользователя уже сохраненные файлы
+		if (!userFiles[userId]) {
+			userFiles[userId] = [] // Если нет, инициализируем пустой массив
+		}
+		// Добавляем ссылку на файл в массив пользователя
+		userFiles[userId].push(fileLink)
+		// Удаляем флаг ожидания файлов
+		delete ctx.session.expectingFiles
 		ctx.reply('Файл сохранен! Можешь его скачать по этой ссылке: ' + fileLink)
 	} else if (ctx.session && ctx.session.expectingFiles) {
 		ctx.reply('Извините, ожидался только файл. Пожалуйста, отправьте файл.')
 	}
 })
 
+// Команда для просмотра файлов пользователя
+bot.command('my_files', ctx => {
+	// Получаем ID пользователя
+	const userId = ctx.from.id
+	// Проверяем, есть ли у пользователя сохраненные файлы
+	if (userFiles[userId] && userFiles[userId].length > 0) {
+		// Формируем сообщение со ссылками на файлы пользователя
+		const message = userFiles[userId]
+			.map((fileLink, index) => `${index + 1}. ${fileLink}`)
+			.join('\n')
+		ctx.reply(`Ваши файлы:\n${message}`)
+	} else {
+		ctx.reply('У вас пока нет сохраненных файлов.')
+	}
+})
 
 bot.catch(err => {
 	// TODO проверка на различные ошибки
