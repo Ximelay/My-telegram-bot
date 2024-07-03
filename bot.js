@@ -31,22 +31,26 @@ bot.api.setMyCommands([
 		command: 'help',
 		description: 'Команды бота',
 	},
-	{
-		command: 'clear',
-		description: 'Очистка чата',
-	},
 	// {
-	// 	command: 'social',
-	// 	description: 'Социальные сети:',
+	// 	command: 'clear',
+	// 	description: 'Очистка чата',
 	// },
 	{
-		command: 'file',
-		description: 'Сохранение ваших файлов:',
+		command: 'social',
+		description: 'Социальные сети:',
 	},
 	{
-		command: 'vk_f',
-		description: 'Проверка страницы на фейковость',
+		command: 'many',
+		description: 'Курсы валют',
 	},
+	// {
+	// 	command: 'file',
+	// 	description: 'Сохранение ваших файлов:',
+	// },
+	// {
+	// 	command: 'vk_f',
+	// 	description: 'Проверка страницы на фейковость',
+	// },
 ])
 // Получение информации о боте
 
@@ -61,10 +65,47 @@ bot.command('start', async ctx => {
 
 bot.command('help', async ctx => {
 	await ctx.reply(
-		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/clear - очистка чата\n/social - Клавиатура\n/file - Сохранение вашего фала\n/my_files - Ваши файлы\n/vk_f - Проверка страницы VK на фейковость\n/social - Соц. Сети'
+		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/social - Социальные сети\n'
 	)
 })
 
+// Добавляем команду в список команд бота
+bot.command('many', async ctx => {
+	try {
+		// Получаем курсы криптовалют с CoinGecko
+		const cryptoResponse = await fetch(
+			'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd'
+		)
+		const cryptoRates = await cryptoResponse.json()
+
+		// Получаем курсы фиатных валют с Open Exchange Rates
+		const fiatResponse = await fetch(
+			'https://openexchangerates.org/api/latest.json?app_id=31edd0acea4d45019d62ba0fc63a22c5'
+		)
+		const fiatRates = await fiatResponse.json()
+		const usdToRubRate = fiatRates.rates.RUB // Курс доллара к рублю
+		// ₿ ᚧ
+		// Формируем сообщение с курсами валют
+		let message = '<b>Курсы валют:</b>\n'
+		message += `💰 <b>Bitcoin (BTC):</b> ${cryptoRates.bitcoin.usd} USD (${(
+			cryptoRates.bitcoin.usd * usdToRubRate
+		).toFixed(2)} RUB)\n`
+		message += `💎 <b>Ethereum (ETH):</b> ${cryptoRates.ethereum.usd} USD (${(
+			cryptoRates.ethereum.usd * usdToRubRate
+		).toFixed(2)} RUB)\n`
+
+		// Отправляем сообщение пользователю с включением HTML форматирования
+		await ctx.reply(message, { parse_mode: 'HTML' })
+
+		// Отправляем сообщение пользователю - отладка
+		// await ctx.reply(message)
+	} catch (error) {
+		console.error('Ошибка при получении курсов валют:', error)
+		await ctx.reply(
+			'Произошла ошибка при получении курсов валют. Пожалуйста, попробуйте позже.'
+		)
+	}
+})
 // bot.hears('creator_ximelay', async ctx => {
 // 	if (ctx.from.id === tgId) {
 // 		await ctx.reply(
@@ -76,225 +117,225 @@ bot.command('help', async ctx => {
 // })
 
 // Обработчик команды для очистки чата
-bot.command('clear', async ctx => {
-	// Проверяем, имеет ли пользователь права на удаление сообщений (например, администратор или создатель чата)
-	if (ctx.from.id == tgId) {
-		try {
-			// Получаем идентификатор чата
-			const chatId = ctx.chat.id
-			// Получаем список всех сообщений в чате
-			const messages = await getChatHistory(chatId)
-			// Проходимся по каждому сообщению и удаляем его
-			for (const message of messages) {
-				await deleteMessage(chatId, message.message_id)
-			}
-			await ctx.reply('Chat cleared successfully')
-		} catch (error) {
-			console.error('Error while clearing chat:', error)
-			await ctx.reply('Error while clearing chat')
-		}
-	} else {
-		await ctx.reply('You do not have permission to clear the chat.')
-	}
-})
+// bot.command('clear', async ctx => {
+// 	// Проверяем, имеет ли пользователь права на удаление сообщений (например, администратор или создатель чата)
+// 	if (ctx.from.id == tgId) {
+// 		try {
+// 			// Получаем идентификатор чата
+// 			const chatId = ctx.chat.id
+// 			// Получаем список всех сообщений в чате
+// 			const messages = await getChatHistory(chatId)
+// 			// Проходимся по каждому сообщению и удаляем его
+// 			for (const message of messages) {
+// 				await deleteMessage(chatId, message.message_id)
+// 			}
+// 			await ctx.reply('Chat cleared successfully')
+// 		} catch (error) {
+// 			console.error('Error while clearing chat:', error)
+// 			await ctx.reply('Error while clearing chat')
+// 		}
+// 	} else {
+// 		await ctx.reply('You do not have permission to clear the chat.')
+// 	}
+// })
 
-// Функция для получения истории чата
-async function getChatHistory(chatId) {
-	return new Promise((resolve, reject) => {
-		const options = {
-			hostname: 'api.telegram.org',
-			path: `/bot${bot}/getChatHistory?chat_id=${chatId}&limit=1000`,
-			method: 'GET',
-		}
+// // Функция для получения истории чата
+// async function getChatHistory(chatId) {
+// 	return new Promise((resolve, reject) => {
+// 		const options = {
+// 			hostname: 'api.telegram.org',
+// 			path: `/bot${bot}/getChatHistory?chat_id=${chatId}&limit=1000`,
+// 			method: 'GET',
+// 		}
 
-		const req = https.request(options, res => {
-			let data = ''
-			res.on('data', chunk => {
-				data += chunk
-			})
-			res.on('end', () => {
-				const result = JSON.parse(data)
-				if (result.ok) {
-					resolve(result.result.messages)
-				} else {
-					reject(result)
-				}
-			})
-		})
+// 		const req = https.request(options, res => {
+// 			let data = ''
+// 			res.on('data', chunk => {
+// 				data += chunk
+// 			})
+// 			res.on('end', () => {
+// 				const result = JSON.parse(data)
+// 				if (result.ok) {
+// 					resolve(result.result.messages)
+// 				} else {
+// 					reject(result)
+// 				}
+// 			})
+// 		})
 
-		req.on('error', error => {
-			reject(error)
-		})
+// 		req.on('error', error => {
+// 			reject(error)
+// 		})
 
-		req.end()
-	})
-}
+// 		req.end()
+// 	})
+// }
 
-// Функция для удаления сообщения в чате
-async function deleteMessage(chatId, messageId) {
-	return new Promise((resolve, reject) => {
-		const options = {
-			hostname: 'api.telegram.org',
-			path: `/bot${bot.token}/deleteMessage`,
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-		}
+// // Функция для удаления сообщения в чате
+// async function deleteMessage(chatId, messageId) {
+// 	return new Promise((resolve, reject) => {
+// 		const options = {
+// 			hostname: 'api.telegram.org',
+// 			path: `/bot${bot.token}/deleteMessage`,
+// 			method: 'POST',
+// 			headers: {
+// 				'Content-Type': 'application/json',
+// 			},
+// 		}
 
-		const req = https.request(options, res => {
-			res.on('data', () => {
-				// Успешно удалено
-				resolve()
-			})
-		})
+// 		const req = https.request(options, res => {
+// 			res.on('data', () => {
+// 				// Успешно удалено
+// 				resolve()
+// 			})
+// 		})
 
-		req.on('error', error => {
-			reject(error)
-		})
+// 		req.on('error', error => {
+// 			reject(error)
+// 		})
 
-		const postData = JSON.stringify({
-			chat_id: chatId,
-			message_id: messageId,
-		})
+// 		const postData = JSON.stringify({
+// 			chat_id: chatId,
+// 			message_id: messageId,
+// 		})
 
-		req.write(postData)
-		req.end()
-	})
-}
+// 		req.write(postData)
+// 		req.end()
+// 	})
+// }
 
-// Функция для расчета количества дней между двумя датами
-function getDaysSince(date) {
-	const today = dayjs() // Текущая дата
-	const registrationDate = dayjs(date) // Дата регистрации страницы
-	return today.diff(registrationDate, 'day') // Разница в днях
-}
+// // Функция для расчета количества дней между двумя датами
+// function getDaysSince(date) {
+// 	const today = dayjs() // Текущая дата
+// 	const registrationDate = dayjs(date) // Дата регистрации страницы
+// 	return today.diff(registrationDate, 'day') // Разница в днях
+// }
 
-bot.command('vk_f', async ctx => {
-	ctx.reply(
-		'Привет! Отправь мне ссылку на страницу ВКонтакте, и я проверю её на "фейковость".'
-	)
-})
+// bot.command('vk_f', async ctx => {
+// 	ctx.reply(
+// 		'Привет! Отправь мне ссылку на страницу ВКонтакте, и я проверю её на "фейковость".'
+// 	)
+// })
 
-bot.on('::url', async ctx => {
-	const text = ctx.message.text
-	const vkUrlRegex = /^https:\/\/vk\.com\/([^\s]+)/i // Регулярное выражение для проверки ссылок на страницы ВКонтакте
-	if (vkUrlRegex.test(text)) {
-		// Проверяем, является ли текст сообщения ссылкой на страницу ВКонтакте
-		const userId = text.match(vkUrlRegex)[1] // Извлекаем id пользователя из ссылки
-		const vkResponse = await fetch(
-			`https://api.vk.com/method/users.get?user_ids=${userId}&fields=bdate,counters&access_token=${vkAccessToken}&v=5.131`
-		)
-		const userData = await vkResponse.json()
-		if (userData.response && userData.response[0]) {
-			const user = userData.response[0]
-			if (user.is_closed === 1) {
-				ctx.reply('Страница закрыта, возможно, это фейк.')
-			} else {
-				const registrationDate = user.bdate // Дата регистрации аккаунта ВКонтакте
-				const daysSinceRegistration = registrationDate
-					? getDaysSince(registrationDate)
-					: null // Количество дней с момента регистрации
-				let message = '' // Переменная для сообщения о результатах проверки
-				if (daysSinceRegistration !== null) {
-					if (daysSinceRegistration < 100) {
-						message =
-							'Страница существует менее 100 дней, скорее всего, это фейковая страница.'
-					} else if (daysSinceRegistration < 730) {
-						message =
-							'Страница существует менее 2 лет, возможно, это фейковая страница.'
-					} else {
-						message =
-							'Страница существует более 2 лет, вероятно, это настоящий аккаунт.'
-					}
-				} else {
-					message =
-						'Дата регистрации не указана, невозможно определить фейковость страницы.'
-				}
-				ctx.reply(message)
-			}
-		} else {
-			ctx.reply('Не удалось получить информацию о странице.')
-		}
-	} else {
-		ctx.reply('Отправьте ссылку на страницу ВКонтакте.')
-	}
-})
+// bot.on('::url', async ctx => {
+// 	const text = ctx.message.text
+// 	const vkUrlRegex = /^https:\/\/vk\.com\/([^\s]+)/i // Регулярное выражение для проверки ссылок на страницы ВКонтакте
+// 	if (vkUrlRegex.test(text)) {
+// 		// Проверяем, является ли текст сообщения ссылкой на страницу ВКонтакте
+// 		const userId = text.match(vkUrlRegex)[1] // Извлекаем id пользователя из ссылки
+// 		const vkResponse = await fetch(
+// 			`https://api.vk.com/method/users.get?user_ids=${userId}&fields=bdate,counters&access_token=${vkAccessToken}&v=5.131`
+// 		)
+// 		const userData = await vkResponse.json()
+// 		if (userData.response && userData.response[0]) {
+// 			const user = userData.response[0]
+// 			if (user.is_closed === 1) {
+// 				ctx.reply('Страница закрыта, возможно, это фейк.')
+// 			} else {
+// 				const registrationDate = user.bdate // Дата регистрации аккаунта ВКонтакте
+// 				const daysSinceRegistration = registrationDate
+// 					? getDaysSince(registrationDate)
+// 					: null // Количество дней с момента регистрации
+// 				let message = '' // Переменная для сообщения о результатах проверки
+// 				if (daysSinceRegistration !== null) {
+// 					if (daysSinceRegistration < 100) {
+// 						message =
+// 							'Страница существует менее 100 дней, скорее всего, это фейковая страница.'
+// 					} else if (daysSinceRegistration < 730) {
+// 						message =
+// 							'Страница существует менее 2 лет, возможно, это фейковая страница.'
+// 					} else {
+// 						message =
+// 							'Страница существует более 2 лет, вероятно, это настоящий аккаунт.'
+// 					}
+// 				} else {
+// 					message =
+// 						'Дата регистрации не указана, невозможно определить фейковость страницы.'
+// 				}
+// 				ctx.reply(message)
+// 			}
+// 		} else {
+// 			ctx.reply('Не удалось получить информацию о странице.')
+// 		}
+// 	} else {
+// 		ctx.reply('Отправьте ссылку на страницу ВКонтакте.')
+// 	}
+// })
 // !Доделать
 bot.command('social', async ctx => {
 	const moodKeyboard = new Keyboard()
-		.text('Telegram')
+		.text('/Telegram')
 		.row()
-		.text('VK')
-		.row()
-		.text('GitHub')
+		// .text('VK')
+		// .row()
+		// .text('GitHub')
 		.resized()
 		.oneTime() //* создаст клавиатуру, где с каждой новой строки будет выведено новое слово с размерами по содержимому
-	await ctx.reply('Ваши соц. сети:', {
+	await ctx.reply('Введиет необходимую команду:', {
 		reply_markup: moodKeyboard,
 	})
 })
 
-bot.hears('Telegram', async ctx => {
+bot.hears('/Telegram', async ctx => {
 	await ctx.reply(`Ваш id в Telegram: ${ctx.from.id}`)
 })
 
-bot.hears('VK', async ctx => {
-	await ctx.reply(`VK: https://m.vk.com`)
-})
+// bot.hears('VK', async ctx => {
+// 	await ctx.reply(`VK: https://m.vk.com`)
+// })
 
-bot.hears('GitHub', async ctx => {
-	await ctx.reply('GitHub: https://github.com')
-})
+// bot.hears('GitHub', async ctx => {
+// 	await ctx.reply('GitHub: https://github.com')
+// })
 
 // Инициализация пустого объекта для хранения ссылок на файлы пользователей
-const userFiles = {}
+// const userFiles = {}
 
 // Команда для сохранения файла
-bot.command('file', ctx => {
-	// Инициализация сессии пользователя
-	ctx.session = { expectingFiles: true }
-	return ctx.reply('Привет! Отправь мне файл и я его сохраню.')
-})
+// bot.command('file', ctx => {
+// 	// Инициализация сессии пользователя
+// 	ctx.session = { expectingFiles: true }
+// 	return ctx.reply('Привет! Отправь мне файл и я его сохраню.')
+// })
 
 // Обработчик сообщений
-bot.on('message', async ctx => {
-	if (ctx.session && ctx.session.expectingFiles && ctx.message.document) {
-		// Получаем информацию о файле
-		const file = await ctx.telegram.getFile(ctx.message.document.file_id)
-		// Загружаем файл и сохраняем его на сервере
-		const fileLink = `https://api.telegram.org/file/bot${bot}/${file.file_path}`
-		// Получаем ID пользователя
-		const userId = ctx.from.id
-		// Проверяем, есть ли у пользователя уже сохраненные файлы
-		if (!userFiles[userId]) {
-			userFiles[userId] = [] // Если нет, инициализируем пустой массив
-		}
-		// Добавляем ссылку на файл в массив пользователя
-		userFiles[userId].push(fileLink)
-		// Удаляем флаг ожидания файлов
-		delete ctx.session.expectingFiles
-		ctx.reply('Файл сохранен! Можешь его скачать по этой ссылке: ' + fileLink)
-	} else if (ctx.session && ctx.session.expectingFiles) {
-		ctx.reply('Извините, ожидался только файл. Пожалуйста, отправьте файл.')
-	}
-})
+// bot.on('message', async ctx => {
+// 	if (ctx.session && ctx.session.expectingFiles && ctx.message.document) {
+// 		// Получаем информацию о файле
+// 		const file = await ctx.telegram.getFile(ctx.message.document.file_id)
+// 		// Загружаем файл и сохраняем его на сервере
+// 		const fileLink = `https://api.telegram.org/file/bot${bot}/${file.file_path}`
+// 		// Получаем ID пользователя
+// 		const userId = ctx.from.id
+// 		// Проверяем, есть ли у пользователя уже сохраненные файлы
+// 		if (!userFiles[userId]) {
+// 			userFiles[userId] = [] // Если нет, инициализируем пустой массив
+// 		}
+// 		// Добавляем ссылку на файл в массив пользователя
+// 		userFiles[userId].push(fileLink)
+// 		// Удаляем флаг ожидания файлов
+// 		delete ctx.session.expectingFiles
+// 		ctx.reply('Файл сохранен! Можешь его скачать по этой ссылке: ' + fileLink)
+// 	} else if (ctx.session && ctx.session.expectingFiles) {
+// 		ctx.reply('Извините, ожидался только файл. Пожалуйста, отправьте файл.')
+// 	}
+// })
 
-// Команда для просмотра файлов пользователя
-bot.command('my_files', ctx => {
-	// Получаем ID пользователя
-	const userId = ctx.from.id
-	// Проверяем, есть ли у пользователя сохраненные файлы
-	if (userFiles[userId] && userFiles[userId].length > 0) {
-		// Формируем сообщение со ссылками на файлы пользователя
-		const message = userFiles[userId]
-			.map((fileLink, index) => `${index + 1}. ${fileLink}`)
-			.join('\n')
-		ctx.reply(`Ваши файлы:\n${message}`)
-	} else {
-		ctx.reply('У вас пока нет сохраненных файлов.')
-	}
-})
+// // Команда для просмотра файлов пользователя
+// bot.command('my_files', ctx => {
+// 	// Получаем ID пользователя
+// 	const userId = ctx.from.id
+// 	// Проверяем, есть ли у пользователя сохраненные файлы
+// 	if (userFiles[userId] && userFiles[userId].length > 0) {
+// 		// Формируем сообщение со ссылками на файлы пользователя
+// 		const message = userFiles[userId]
+// 			.map((fileLink, index) => `${index + 1}. ${fileLink}`)
+// 			.join('\n')
+// 		ctx.reply(`Ваши файлы:\n${message}`)
+// 	} else {
+// 		ctx.reply('У вас пока нет сохраненных файлов.')
+// 	}
+// })
 
 bot.catch(err => {
 	// TODO проверка на различные ошибки
