@@ -12,7 +12,7 @@
 	"dependencies": {
 		"dayjs": "^1.11.11",
 		"dotenv": "^16.4.5",
-		"grammy": "^1.21.2",
-		"nodemon": "^3.1.0"
+		"grammy": "^1.27.0",
+		"nodemon": "^3.1.4"
 	}
 }

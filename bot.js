@@ -65,7 +65,7 @@ bot.command('start', async ctx => {
 
 bot.command('help', async ctx => {
 	await ctx.reply(
-		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/social - Социальные сети\n'
+		'Доступные команды:\n/start - Старт бота\n/help - Команды бота\n/many - Курс валют\n/social - Социальные сети\n'
 	)
 })
 
